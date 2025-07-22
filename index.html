@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Complete Challenge Tracker</title>
+    <style>
+        :root {
+            --background-color: #f8f9fa;
+            --text-color: #343a40;
+            --grid-color: #e9ecef;
+            --shaded-color: #28a745;
+            --primary-color: #007bff;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --header-font: 'Helvetica Neue', sans-serif;
+            --body-font: 'Arial', sans-serif;
+        }
+        body {
+            font-family: var(--body-font);
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+        }
+        h1 {
+            font-family: var(--header-font);
+            font-weight: 300;
+            font-size: 2.5rem;
+            margin-bottom: 0;
+        }
+        #live-datetime { font-size: 0.9rem; color: #6c757d; min-height: 1.2em; }
+        .challenge-manager {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin: 1rem 0 2rem 0;
+            flex-wrap: wrap;
+        }
+        select, button {
+            font-family: var(--body-font);
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--grid-color);
+            background-color: #fff;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        #new-challenge-btn { background-color: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+        #edit-challenge-btn { background-color: var(--warning-color); color: #212529; border-color: var(--warning-color); display: none; }
+        #delete-challenge-btn { background-color: var(--danger-color); color: #fff; border-color: var(--danger-color); display: none; }
+        #challenge-view { display: none; }
+        #challenge-meta-info { color: #6c757d; margin-top: -1rem; margin-bottom: 1rem; }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 1rem;
+            font-family: var(--header-font);
+            font-size: 1.5rem;
+            gap: 1rem;
+        }
+        .stat-item { padding: 10px 20px; border-radius: 8px; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex-grow: 1; }
+        #progress-done span { color: var(--shaded-color); font-weight: 500; }
+        #progress-remaining span { color: var(--text-color); font-weight: 500; }
+        .grid-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+        .grid-controls label { font-size: 0.9rem; color: #6c757d; }
+        #zoom-slider { -webkit-appearance: none; appearance: none; width: 150px; height: 5px; background: var(--grid-color); border-radius: 5px; outline: none; }
+        #zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; background: var(--primary-color); cursor: pointer; border-radius: 50%; }
+        #zoom-slider::-moz-range-thumb { width: 18px; height: 18px; background: var(--primary-color); cursor: pointer; border-radius: 50%; }
+        .grid-wrapper { width: 100%; overflow: hidden; padding-bottom: 2rem; }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(22px, 1fr));
+            gap: 6px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            transform-origin: center center;
+            transition: transform 0.2s ease-out;
+        }
+        .grid-square {
+            width: 100%; padding-bottom: 100%; background-color: var(--grid-color);
+            border-radius: 4px; cursor: pointer; transition: background-color 0.3s ease;
+        }
+        .grid-square.shaded { background-color: var(--shaded-color); }
+        .progress-bar-container { width: 100%; background-color: var(--grid-color); border-radius: 10px; height: 12px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); }
+        .progress-bar-fill { height: 100%; width: 0%; background-color: var(--primary-color); border-radius: 10px; transition: width 0.5s ease-out; }
+        #challenge-time-progress-bar { background-color: var(--warning-color); }
+        .progress-label { font-size: 0.8rem; color: #6c757d; margin-top: 0.25rem; margin-bottom: 1.5rem; }
+        .modal {
+            display: none; position: fixed; z-index: 100;
+            left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.4);
+            align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background-color: #fff; margin: auto; padding: 2rem;
+            border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 90%; max-width: 500px;
+        }
+        .modal-content h2 { margin-top: 0; }
+        .modal-content .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .modal-content .form-field-full { grid-column: 1 / -1; }
+        .modal-content label { display: block; text-align: left; margin-bottom: 5px; font-weight: bold; }
+        .modal-content input { width: 100%; padding: 10px; box-sizing: border-box; border-radius: 5px; border: 1px solid var(--grid-color); }
+        .close-btn { float: right; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Challenge Tracker</h1>
+        <p id="live-datetime"></p>
+        <div class="progress-bar-container"><div id="day-progress-bar" class="progress-bar-fill"></div></div>
+        <p class="progress-label">Today's Progress</p>
+
+        <div class="challenge-manager">
+            <select id="challenge-select"><option value="">-- Select a Challenge --</option></select>
+            <button id="new-challenge-btn">Create New</button>
+            <button id="edit-challenge-btn">Edit Challenge</button>
+            <button id="delete-challenge-btn">Delete Challenge</button>
+        </div>
+
+        <div id="challenge-view">
+            <h2 id="challenge-title"></h2>
+            <p id="challenge-meta-info"></p>
+            <div id="challenge-progress-container" style="display: none;">
+                <div class="progress-bar-container"><div id="challenge-time-progress-bar" class="progress-bar-fill"></div></div>
+                <p class="progress-label">Challenge Timeline</p>
+            </div>
+            <div class="stats">
+                <div id="progress-done" class="stat-item">Done: <span>0</span></div>
+                <div id="progress-remaining" class="stat-item">Remaining: <span>0</span></div>
+            </div>
+            <div class="grid-controls">
+                <label for="zoom-slider">Zoom:</label>
+                <input type="range" id="zoom-slider" min="0.3" max="2.5" value="1" step="0.1">
+            </div>
+            <div class="grid-wrapper">
+                <div id="grid-container" class="grid-container"></div>
+            </div>
+        </div>
+        <p id="welcome-message">Select a challenge or create one to get started!</p>
+    </div>
+
+    <div id="challenge-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2 id="modal-title">Create New Challenge</h2>
+            <form id="challenge-form">
+                <input type="hidden" id="challenge-id">
+                <div class="form-field-full"><label for="challenge-name">Challenge Name:</label><input type="text" id="challenge-name" required></div>
+                <div class="form-grid">
+                    <div><label for="total-goal">Total Goal:</label><input type="number" id="total-goal" value="10000" min="1" required></div>
+                    <div><label for="reps-per-square">Units per Square:</label><input type="number" id="reps-per-square" value="10" min="1" required></div>
+                    <div><label for="completed-count">Current Progress:</label><input type="number" id="completed-count" value="0" min="0"></div>
+                    <div><label for="challenge-unit">Unit Name:</label><input type="text" id="challenge-unit" value="swings" required></div>
+                </div>
+                <div class="form-field-full"><label for="end-date">End Date:</label><input type="date" id="end-date" required></div>
+                <button type="submit" id="save-challenge-btn" style="width:100%; margin-top: 1rem; background-color: var(--primary-color); color: #fff; border: none;">Save</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        // TODO: Replace with your own Firebase project configuration
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const liveDateTimeEl = document.getElementById('live-datetime');
+            const challengeSelect = document.getElementById('challenge-select');
+            const newChallengeBtn = document.getElementById('new-challenge-btn');
+            const editChallengeBtn = document.getElementById('edit-challenge-btn');
+            const deleteChallengeBtn = document.getElementById('delete-challenge-btn');
+            const modal = document.getElementById('challenge-modal');
+            const closeModalBtn = modal.querySelector('.close-btn');
+            const challengeForm = document.getElementById('challenge-form');
+            const challengeView = document.getElementById('challenge-view');
+            const welcomeMessage = document.getElementById('welcome-message');
+            const dayProgressBar = document.getElementById('day-progress-bar');
+            const challengeTimeProgressBar = document.getElementById('challenge-time-progress-bar');
+            const challengeProgressContainer = document.getElementById('challenge-progress-container');
+            const gridContainer = document.getElementById('grid-container');
+            const zoomSlider = document.getElementById('zoom-slider');
+
+            let challenges = [];
+            let activeChallengeId = localStorage.getItem('activeChallengeId');
+
+            function updateLiveTime() {
+                liveDateTimeEl.textContent = new Date().toLocaleString();
+                const now = new Date();
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const millisecondsPassed = now.getTime() - startOfDay.getTime();
+                dayProgressBar.style.width = `${(millisecondsPassed / 86400000) * 100}%`;
+            }
+
+            async function loadChallenges() {
+                const querySnapshot = await getDocs(collection(db, "challenges"));
+                challenges = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderChallengeSelect();
+                renderChallengeView();
+            }
+
+            function renderChallengeSelect() {
+                challengeSelect.innerHTML = '<option value="">-- Select a Challenge --</option>';
+                challenges.forEach(challenge => {
+                    const option = document.createElement('option');
+                    option.value = challenge.id;
+                    option.textContent = challenge.name;
+                    if (challenge.id == activeChallengeId) option.selected = true;
+                    challengeSelect.appendChild(option);
+                });
+                updateButtonVisibility();
+            }
+
+            function updateButtonVisibility() {
+                const hasActiveChallenge = !!activeChallengeId;
+                editChallengeBtn.style.display = hasActiveChallenge ? 'inline-block' : 'none';
+                deleteChallengeBtn.style.display = hasActiveChallenge ? 'inline-block' : 'none';
+            }
+
+            function renderChallengeView() {
+                zoomSlider.value = 1; // Reset zoom on render
+                gridContainer.style.transform = 'scale(1)';
+
+                const activeChallenge = challenges.find(c => c.id == activeChallengeId);
+                if (!activeChallenge) {
+                    challengeView.style.display = 'none';
+                    welcomeMessage.style.display = 'block';
+                    return;
+                }
+                challengeView.style.display = 'block';
+                welcomeMessage.style.display = 'none';
+
+                const { name, endDate, totalGoal, completedCount, unit, repsPerSquare = 10, lastUpdated, creationDate } = activeChallenge;
+
+                if (creationDate && endDate) {
+                    const startDateMs = new Date(creationDate).getTime();
+                    const endDateMs = new Date(endDate).getTime();
+                    const nowMs = new Date().getTime();
+                    const totalDuration = endDateMs - startDateMs;
+                    const elapsedDuration = nowMs - startDateMs;
+                    let timePercentage = totalDuration > 0 ? (elapsedDuration / totalDuration) * 100 : 0;
+                    challengeTimeProgressBar.style.width = `${Math.max(0, Math.min(100, timePercentage))}%`;
+                    challengeProgressContainer.style.display = 'block';
+                } else {
+                    challengeProgressContainer.style.display = 'none';
+                }
+
+                document.getElementById('challenge-title').textContent = name;
+                const daysRemaining = Math.ceil((new Date(endDate).getTime() - new Date().getTime()) / 86400000);
+                let metaInfo = `Goal: <strong>${daysRemaining > 0 ? daysRemaining : 0}</strong> days left. Each square is <strong>${repsPerSquare}</strong> ${unit}.`;
+                if (lastUpdated) metaInfo += `<br>Last updated: ${new Date(lastUpdated).toLocaleString()}`;
+                document.getElementById('challenge-meta-info').innerHTML = metaInfo;
+
+                document.querySelector('#progress-done span').textContent = completedCount.toLocaleString();
+                document.querySelector('#progress-remaining span').textContent = (totalGoal - completedCount).toLocaleString();
+
+                gridContainer.innerHTML = '';
+                const totalSquares = Math.ceil(totalGoal / repsPerSquare);
+                const shadedSquares = Math.floor(completedCount / repsPerSquare);
+                for (let i = 0; i < totalSquares; i++) {
+                    const square = document.createElement('div');
+                    square.classList.add('grid-square');
+                    if (i < shadedSquares) square.classList.add('shaded');
+                    square.addEventListener('click', () => handleSquareClick(i));
+                    gridContainer.appendChild(square);
+                }
+            }
+
+            async function handleSquareClick(index) {
+                const activeChallenge = challenges.find(c => c.id == activeChallengeId);
+                if (!activeChallenge) return;
+                const { repsPerSquare = 10, totalGoal } = activeChallenge;
+                const currentShadedCount = Math.floor(activeChallenge.completedCount / repsPerSquare);
+                let newCompletedCount = (index + 1 === currentShadedCount && activeChallenge.completedCount % repsPerSquare === 0) ? index * repsPerSquare : (index + 1) * repsPerSquare;
+                activeChallenge.completedCount = Math.min(newCompletedCount, totalGoal);
+                activeChallenge.lastUpdated = new Date().toISOString();
+                
+                const challengeRef = doc(db, "challenges", activeChallenge.id);
+                await updateDoc(challengeRef, {
+                    completedCount: activeChallenge.completedCount,
+                    lastUpdated: activeChallenge.lastUpdated
+                });
+
+                renderChallengeView();
+            }
+
+            function openModal(mode, challenge = {}) {
+                challengeForm.reset();
+                ['completed-count', 'total-goal', 'reps-per-square'].forEach(id => {
+                    document.getElementById(id).value = document.getElementById(id).defaultValue;
+                });
+                if (mode === 'edit') {
+                    modal.querySelector('#modal-title').textContent = 'Edit Challenge';
+                    Object.keys(challenge).forEach(key => {
+                        const el = modal.querySelector(`#${key.replace(/([A-Z])/g, "-$1").toLowerCase()}`);
+                        if(el) el.value = challenge[key];
+                    });
+                    modal.querySelector('#challenge-id').value = challenge.id;
+                    modal.querySelector('#save-challenge-btn').textContent = 'Save Changes';
+                } else {
+                    modal.querySelector('#modal-title').textContent = 'Create New Challenge';
+                    modal.querySelector('#challenge-id').value = '';
+                    modal.querySelector('#save-challenge-btn').textContent = 'Save Challenge';
+                }
+                modal.style.display = 'flex';
+            }
+
+            zoomSlider.addEventListener('input', (e) => {
+                gridContainer.style.transform = `scale(${e.target.value})`;
+            });
+
+            newChallengeBtn.addEventListener('click', () => openModal('new'));
+            editChallengeBtn.addEventListener('click', () => {
+                const challenge = challenges.find(c => c.id == activeChallengeId);
+                if (challenge) openModal('edit', challenge);
+            });
+            deleteChallengeBtn.addEventListener('click', async () => {
+                if (activeChallengeId && confirm('Delete this challenge? This cannot be undone.')) {
+                    await deleteDoc(doc(db, "challenges", activeChallengeId));
+                    activeChallengeId = '';
+                    localStorage.setItem('activeChallengeId', activeChallengeId);
+                    loadChallenges();
+                }
+            });
+
+            closeModalBtn.addEventListener('click', () => modal.style.display = 'none');
+            window.addEventListener('click', (e) => { if (e.target == modal) modal.style.display = 'none'; });
+
+            challengeForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = modal.querySelector('#challenge-id').value;
+                const challengeData = {
+                    name: modal.querySelector('#challenge-name').value,
+                    unit: modal.querySelector('#challenge-unit').value,
+                    totalGoal: parseInt(modal.querySelector('#total-goal').value),
+                    completedCount: parseInt(modal.querySelector('#completed-count').value),
+                    repsPerSquare: parseInt(modal.querySelector('#reps-per-square').value),
+                    endDate: modal.querySelector('#end-date').value,
+                };
+
+                if (id) {
+                    const challengeRef = doc(db, "challenges", id);
+                    await updateDoc(challengeRef, { ...challengeData, lastUpdated: new Date().toISOString() });
+                } else {
+                    const newChallengeRef = doc(collection(db, "challenges"));
+                    const newChallenge = { id: newChallengeRef.id, ...challengeData, creationDate: new Date().toISOString() };
+                    await setDoc(newChallengeRef, newChallenge);
+                    activeChallengeId = newChallenge.id;
+                    localStorage.setItem('activeChallengeId', activeChallengeId);
+                }
+                
+                loadChallenges();
+                modal.style.display = 'none';
+            });
+
+            challengeSelect.addEventListener('change', (e) => {
+                activeChallengeId = e.target.value;
+                localStorage.setItem('activeChallengeId', activeChallengeId);
+                updateButtonVisibility();
+                renderChallengeView();
+            });
+
+            // --- Initial Load ---
+            updateLiveTime();
+            setInterval(updateLiveTime, 1000);
+            loadChallenges();
+        });
+    </script>
+</body>
+</html>
